@@ -23,10 +23,7 @@ the [libtins](http://libtins.github.io/) packet parsing library
 which should be [downloaded](http://libtins.github.io/download/) and
 built or installed first.
 
-pping uses only the core functions of libtins so, if there are no other
-users, a static version of the library with fewer dependencies
-(only _cmake_ and _libpcap_) can be built and 'installed' in its own
-source directory:
+静态编译`libtins`:
 ```Shell
 # (assuming sources are put in ~/src)
 cd ~/src
@@ -40,27 +37,56 @@ cmake ../ -DLIBTINS_BUILD_SHARED=0 -DLIBTINS_ENABLE_CXX11=1 \
 make
 make install
 ```
-(The static libtins library makes the pping binary more self-contained
-so it will run on systems that don't have libtins installed.)
+
+静态编译 libpcap (静态和动态库都编译):
+```Shell
+wget http://www.tcpdump.org/release/libpcap-1.10.0.tar.gz
+tar -zxvf libpcap-1.10.0.tar.gz
+cd libpcap-1.10.0
+
+./configure
+
+sudo make install
+```
+
+安装`glibc`和`libstdc++`的静态库:
+```Shell
+yum install glibc-static libstdc++-static
+```
+
 
 ## Building
 
-The pping makefile assumes libtins has been built and installed in
-directory `~/src/libtins` as described above. If that isn't the case,
-edit the third line of the makefile to be the libtins install location.
-For example, if the libtins precompiled binary is installed, change the
-third line to:
+
+在上一个步骤，`libtins`被默认安装到了`/usr/local`, 所以`Makefile`中LIBTINS变量应该确保设置为`/usr/local`:
 ```Shell
 LIBTINS = /usr/local
 ```
-Nothing else in Makefile should require changing and just typing `make`
-should build pping.
 
-There's currently no _install_ target in the makefile because pping
-for live traffic (as opposed to running it on a pcap file)
-requires packet sniffing capabilities and there's no standard way
-to set that up (see the notes on "Reading packets from a network
-interface" in `man pcap`). It can always be run as root via `sudo`.
+确保静态编译:
+```Shell
+#LIBTINS = $(HOME)/src/libtins
+LIBTINS = /usr/local
+CPPFLAGS += -I$(LIBTINS)/include
+LDFLAGS += -L$(LIBTINS)/lib $(LIBTINS)/lib/libtins.a -static -ltins -lpcap
+CXXFLAGS += -std=c++14 -g -O3 -Wall
+
+pping:  pping.cpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o pping pping.cpp $(LDFLAGS)
+
+clean:
+	rm pping
+```
+
+
+然后`make`就可以静态编译`pping`了。
+
+检查编译好的`pping`有没有依赖动态库:
+```Shell
+[root@vps3 pping]# readelf -d pping
+
+There is no dynamic section in this file.
+```
 
 ## Examples ##
 
